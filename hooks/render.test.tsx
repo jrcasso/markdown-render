@@ -267,3 +267,47 @@ test('pressing a rendered diagram opens the PNG in the system viewer', async ($,
   expect(opened?.[1]).toMatch(/\.png$/)
   await ui.unmount()
 })
+
+test('a thematic break is drawn as a rule, not literal dashes', async ($) => {
+  const ui = await $.ui.mount(message('alpha\n\n---\n\nbeta'))
+  const rule = await ui.find({ type: 'Text', text: /^─+$/ })
+  expect(rule?.text).toMatch(/^─+$/)
+  const texts = (await ui.findAll({ type: 'Markdown' })).map(m => (m as { text?: string }).text ?? '')
+  expect(texts.join('\n')).not.toContain('---')
+  await ui.unmount()
+})
+
+for (const [name, src] of [
+  ['asterisks', 'alpha\n\n***\n\nbeta'],
+  ['underscores', 'alpha\n\n___\n\nbeta'],
+  ['long dashes', 'alpha\n\n------\n\nbeta'],
+  ['spaced dashes', 'alpha\n\n- - -\n\nbeta'],
+  ['html hr', 'alpha\n\n<hr>\n\nbeta'],
+] as const) {
+  test(`a rule written with ${name} is drawn`, async ($) => {
+    const ui = await $.ui.mount(message(src))
+    expect((await ui.find({ type: 'Text', text: /^─+$/ }))?.text).toMatch(/^─+$/)
+    await ui.unmount()
+  })
+}
+
+test('a setext heading underline is left to markdown', async ($, on) => {
+  on('ui.render', ($, e) => {
+    const { Markdown } = $.ui.resolve(e)
+    return <Markdown text={(e.props as { text: string }).text} />
+  })
+  const ui = await $.ui.mount(message('alpha\n---\nbeta'))
+  expect(await ui.find({ type: 'Text', text: /^─+$/ })).toBe(undefined)
+  expect((await ui.find({ type: 'Markdown' }))?.text).toContain('---')
+  await ui.unmount()
+})
+
+test('dashes inside a code fence are not a rule', async ($, on) => {
+  on('ui.render', ($, e) => {
+    const { Markdown } = $.ui.resolve(e)
+    return <Markdown text={(e.props as { text: string }).text} />
+  })
+  const ui = await $.ui.mount(message('```\n---\n```'))
+  expect(await ui.find({ type: 'Text', text: /^─+$/ })).toBe(undefined)
+  await ui.unmount()
+})

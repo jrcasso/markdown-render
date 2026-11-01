@@ -160,6 +160,13 @@ export const register: Register = (on, options) => {
       if (s.kind === 'markdown') return <Markdown text={s.text} />
       if (s.kind === 'mermaid') return drawMermaid(s.source, s.isClosed, index)
       if (s.kind === 'details') return drawDetails(s, index)
+      if (s.kind === 'rule') {
+        return (
+          <Text dimColor>
+            {'─'.repeat(Math.max(4, maxColumns))}
+          </Text>
+        )
+      }
       const a = ALERTS[s.alert]
       return (
         <Box flexDirection="column" paddingLeft={2}>

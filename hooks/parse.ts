@@ -5,10 +5,13 @@ export type Segment =
   | { kind: 'mermaid'; source: string; isClosed: boolean }
   | { kind: 'alert'; alert: AlertKind; body: string }
   | { kind: 'details'; summary: string; body: string }
+  | { kind: 'rule' }
 
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})\s*([^\s`]*)/
 const ALERT_HEAD = /^ {0,3}>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/i
 const QUOTE_LINE = /^ {0,3}>/
+const THEMATIC = /^ {0,3}([-*_])[ \t]*(?:\1[ \t]*){2,}$/
+const HR_TAG = /^\s*<hr\s*\/?>\s*$/i
 const DETAILS_OPEN = /<details[\s>]/i
 const DETAILS_CLOSE = /<\/details\s*>/i
 const SUMMARY = /<summary[^>]*>([\s\S]*?)<\/summary>/i
@@ -97,6 +100,17 @@ export const parse = (text: string): Segment[] => {
         buffer.push(...lines.slice(i, Math.min(j + 1, lines.length)))
       }
       i = j + 1
+      continue
+    }
+
+    const thematic = THEMATIC.exec(line)
+    // A dash run directly under a paragraph line is a setext heading, not a
+    // break, so it stays in the buffer for the markdown renderer.
+    const isSetext = thematic?.[1] === '-' && i > 0 && at(i - 1).trim() !== ''
+    if (HR_TAG.test(line) || (thematic !== null && !isSetext)) {
+      flush()
+      segments.push({ kind: 'rule' })
+      i++
       continue
     }
 

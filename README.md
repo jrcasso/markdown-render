@@ -4,6 +4,7 @@ A Claude Code mod that renders GitHub-flavored markdown extras in assistant repl
 
 - **Mermaid code blocks as images**, rendered inline, Dracula theme by default, cached by content hash
 - **GitHub alerts** (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) as coloured callouts with a tinted gutter
+- **Horizontal rules** (`---`, `***`, `___`, `<hr>`) drawn as a real line across the reply width. The engine's markdown element emits a thematic break as literal dashes, so the mod draws it instead. A dash run directly under a paragraph line is left alone, since that is a setext heading
 - **Collapsible `<details>` blocks**, drawn as a pressable summary row that expands and collapses on click, collapsed by default as the HTML element is
 - **Task lists** as `☐`/`☑`, footnotes as superscripts, `<kbd>`, `<br>`
 - **An `⤢ open` control under each rendered diagram** that opens the full-resolution PNG in your image viewer, for when a diagram is too dense to read at terminal size
