@@ -3,22 +3,46 @@ import type { Register } from 'claude-code'
 import { type AlertKind, type Segment, imageCells, parse, rewriteOutsideFences } from './parse'
 import { type RenderSettings, diagramKey, diagrams, pruneCache, renderDiagram } from './render'
 
-const FORMATTING_GUIDANCE = `# Diagrams and formatting
-The terminal renders GitHub-flavored markdown in your replies, including \`\`\`mermaid fenced blocks drawn as images, GitHub alerts (> [!NOTE], [!TIP], [!IMPORTANT], [!WARNING], [!CAUTION]) and task lists. The user reads diagrams faster than prose and wants more of them.
-- Default to including a mermaid diagram whenever a reply describes three or more things that connect, or steps that branch or loop. Typical cases: explaining how code works (call paths, data flow, module boundaries), a plan or proposal, debugging findings (where the failure enters and propagates), architecture, request or event sequences, state and lifecycle, dependencies, before-and-after changes, comparing options, timelines.
-- Before writing a numbered list of steps, a "first X calls Y, which..." paragraph, or an arrow chain like A -> B -> C, draw it instead. Then let the prose add only what the diagram cannot show (why, caveats, file references); do not narrate the diagram.
-- Pick the type that fits: flowchart for flow and decisions, sequenceDiagram for interactions over time, stateDiagram-v2 for lifecycles, classDiagram or erDiagram for structure and data models, gantt or timeline for schedules, mindmap for breaking down a topic.
-- Prefer left-to-right layouts: start flowcharts with \`flowchart LR\` (and use \`direction LR\` in state diagrams and subgraphs), because the terminal is much wider than it is tall. Use top-down only when a single chain would run past about seven nodes in a row.
-- Keep each diagram readable: about 15 nodes or fewer (split larger ones into two), short labels, no custom colors, classDef or style lines (the renderer applies its own theme). Quote any label containing punctuation, e.g. A["parse()"], and avoid parentheses, brackets or semicolons in unquoted labels so the diagram renders.
-- Skip the diagram only for one-line answers, simple confirmations, single facts, or when the user asks for none.
-- Use GitHub alerts to make things the user must not miss stand out from the body text. They render as colored callout boxes, so use them freely when the content fits:
-  - [!NOTE] background or context worth knowing but not acting on
-  - [!TIP] a shortcut, better approach or optional improvement
-  - [!IMPORTANT] something the user must do or decide, or a requirement for things to work
-  - [!WARNING] a risk, side effect, unverified assumption or something that could break
-  - [!CAUTION] destructive or irreversible actions, data loss, security or production impact
-  Typical moments: a step the user still has to run, an action that needs a restart, a result that is untested, a change that touches production or shared state, a surprising finding. Keep each alert to one to three sentences, at most about three per reply, and never wrap the whole answer in one.
-- Be token-conscious with other markdown: use headings, tables and lists only where they make the reply easier to scan. No decorative formatting, no tables for two or three items.`
+const DIAGRAM_LEVELS = ['off', 'minimal', 'balanced', 'eager'] as const
+type DiagramLevel = (typeof DIAGRAM_LEVELS)[number]
+
+const GUIDANCE_INTRO = `# Diagrams and formatting
+The terminal renders GitHub-flavored markdown in your replies: \`\`\`mermaid fenced blocks are drawn as images, GitHub alerts become coloured callout boxes, and task lists, footnotes, <details>, <kbd> and <br> all render.`
+
+const EAGERNESS: Record<Exclude<DiagramLevel, 'off'>, string> = {
+  minimal: `Diagrams are available but are not the default. Draw one only where it genuinely beats prose: when the user asks for a diagram, when the shape of the thing is itself the answer (an architecture, a state machine, a schema), or when a relationship has too many edges to follow in a sentence. Do not reach for one by default. Anything you can say clearly in two sentences, a list of independent items, or a plain explanation stays prose.`,
+  balanced: `Include a mermaid diagram when a reply describes three or more things that connect, or steps that branch or loop. Typical cases: how code works (call paths, data flow, module boundaries), a plan or proposal, debugging findings (where a failure enters and how it propagates), architecture, request or event sequences, state and lifecycle, dependencies, before-and-after changes, comparing options, and timelines. One diagram suits most replies; reach for a second only when a reply genuinely covers two separate structures. Skip the diagram for one-line answers, simple confirmations, single facts, a list of unrelated items, or when the user asks for none.`,
+  eager: `Default to including a mermaid diagram. The user reads diagrams faster than prose and wants more of them. Before writing a numbered list of steps, a "first X calls Y, which..." paragraph, or an arrow chain like A -> B -> C, draw it instead. Lead with the diagram and let the prose follow it. Any reply covering three or more connected things, or steps that branch or loop, gets one: how code works, a plan or proposal, debugging findings, architecture, request or event sequences, state and lifecycle, dependencies, before-and-after changes, comparing options, timelines. Two diagrams are right when a reply covers two distinct structures. Only a one-line answer, a simple confirmation, a single fact, or an explicit request for none is exempt.`,
+}
+
+const GUIDANCE_CRAFT = `Choosing the type: flowchart for flow, branching and decisions; sequenceDiagram for interactions between parties over time; stateDiagram-v2 for lifecycles and state machines; classDiagram or erDiagram for structure and data models; gantt or timeline for schedules; mindmap for breaking a topic into parts.
+
+Keeping a diagram renderable and readable:
+- Start flowcharts with \`flowchart LR\`, and use \`direction LR\` in state diagrams and subgraphs, because the terminal is far wider than it is tall. Use top-down only when a single chain would run past about seven nodes in a row.
+- Keep each diagram to about 15 nodes or fewer, with short labels; split a larger one into two diagrams.
+- Quote any label containing punctuation, for example A["parse()"], and avoid parentheses, brackets and semicolons in unquoted labels, which fail to parse.
+- Do not write classDef, style lines or custom colors: the renderer applies its own theme over them.
+- Let the prose add only what the diagram cannot show (why, caveats, file references). Never narrate the diagram in text.
+
+Using GitHub alerts, which render as coloured callout boxes:
+- [!NOTE] background or context worth knowing but not acting on
+- [!TIP] a shortcut, better approach or optional improvement
+- [!IMPORTANT] something the user must do or decide, or a requirement for things to work
+- [!WARNING] a risk, side effect, unverified assumption or something that could break
+- [!CAUTION] destructive or irreversible actions, data loss, security or production impact
+Typical moments: a step the user still has to run, an action that needs a restart, a result that is untested, a change that touches production or shared state, a surprising finding. Keep each alert to one to three sentences, at most about three per reply, and never wrap a whole answer in one.
+
+Be token-conscious with other markdown: use headings, tables and lists only where they make the reply easier to scan. No decorative formatting, and no tables for two or three items.`
+
+const isDiagramLevel = (v: unknown): v is DiagramLevel =>
+  typeof v === 'string' && (DIAGRAM_LEVELS as readonly string[]).includes(v)
+
+const guidanceFor = (level: DiagramLevel): string | null =>
+  level === 'off' ? null : `${GUIDANCE_INTRO}
+
+${EAGERNESS[level]}
+
+${GUIDANCE_CRAFT}`
 const ALERTS: Record<AlertKind, { title: string; icon: string; color: string }> = {
   NOTE: { title: 'Note', icon: 'ⓘ', color: '#4493f8' },
   TIP: { title: 'Tip', icon: '✦', color: '#3fb950' },
@@ -35,7 +59,8 @@ export const register: Register = (on, options) => {
   const cellAspect = typeof options.cellAspect === 'number' && options.cellAspect > 0 ? options.cellAspect : 2
   const maxRows = typeof options.maxRows === 'number' && options.maxRows > 0 ? options.maxRows : 45
   const retentionDays = typeof options.retentionDays === 'number' ? options.retentionDays : 14
-  const isGuiding = options.promptGuidance !== false
+  const level: DiagramLevel = isDiagramLevel(options.diagramLevel) ? options.diagramLevel : 'balanced'
+  const guidance = guidanceFor(level)
 
   on('session.start', async ($, e, next) => {
     diagrams.clear()
@@ -48,8 +73,8 @@ export const register: Register = (on, options) => {
     const isRendered =
       e.surfaces.includes('terminal') &&
       !e.traits.some(t => t === 'bare' || t === 'print' || t === 'teammate' || t === 'analysis')
-    if (!isRendered || !isGuiding) return result
-    return { sections: [...result.sections, { id: 'markdown-render:formatting', text: FORMATTING_GUIDANCE, scope: 'session' }] }
+    if (!isRendered || guidance === null) return result
+    return { sections: [...result.sections, { id: 'markdown-render:formatting', text: guidance, scope: 'session' }] }
   })
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {

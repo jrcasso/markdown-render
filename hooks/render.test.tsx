@@ -1,3 +1,5 @@
+import type { On } from 'claude-code'
+
 import { expect, mock, test } from 'claude-code/testing'
 
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAHgAAAAoCAYAAAA16j4lAAAAKklEQVR42u3BMQEAAADCoPVPbQ0PoAAAAAAAAAAAAAAAAAAAAAAAAODPAEsoAAEfS7LEAAAAAElFTkSuQmCC'
@@ -120,18 +122,65 @@ test('an unclosed mermaid fence while streaming is not rendered yet', async ($, 
   await ui.unmount()
 })
 
-test('the system prompt gains diagram guidance on the terminal only', async ($, on) => {
+const BASE = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', tools: [], outputStyle: null }
+const seedPrompt = (on: On) =>
   on('prompt.compose', () => ({ sections: [{ id: 'intro', text: 'You are Claude.', scope: 'shared' as const }] }))
-  const base = { model: 'claude-opus-5-5', promptModel: 'claude-opus-5-5', tools: [], outputStyle: null }
 
-  const terminal = await $.prompt.compose({ ...base, surfaces: ['terminal'], traits: [] })
+test('the system prompt gains diagram guidance on the terminal only', async ($, on) => {
+  seedPrompt(on)
+
+  const terminal = await $.prompt.compose({ ...BASE, surfaces: ['terminal'], traits: [] })
   expect(terminal.sections.map(s => s.id)).toEqual(['intro', 'markdown-render:formatting'])
   expect(terminal.sections[1]?.text).toContain('mermaid')
   expect(terminal.sections[1]?.scope).toBe('session')
 
-  const printed = await $.prompt.compose({ ...base, surfaces: ['terminal'], traits: ['print'] })
+  const printed = await $.prompt.compose({ ...BASE, surfaces: ['terminal'], traits: ['print'] })
   expect(printed.sections.map(s => s.id)).toEqual(['intro'])
 
-  const desktop = await $.prompt.compose({ ...base, surfaces: ['desktop'], traits: [] })
+  const desktop = await $.prompt.compose({ ...BASE, surfaces: ['desktop'], traits: [] })
   expect(desktop.sections.map(s => s.id)).toEqual(['intro'])
+})
+
+test('the default level is balanced', async ($, on) => {
+  seedPrompt(on)
+  const { sections } = await $.prompt.compose({ ...BASE, surfaces: ['terminal'], traits: [] })
+  expect(sections[1]?.text).toContain('three or more things that connect')
+  expect(sections[1]?.text).not.toContain('Default to including a mermaid diagram')
+})
+
+test('level off injects no section at all', { options: { diagramLevel: 'off' } }, async ($, on) => {
+  seedPrompt(on)
+  const { sections } = await $.prompt.compose({ ...BASE, surfaces: ['terminal'], traits: [] })
+  expect(sections.map(s => s.id)).toEqual(['intro'])
+})
+
+test('level minimal holds the eagerness back', { options: { diagramLevel: 'minimal' } }, async ($, on) => {
+  seedPrompt(on)
+  const { sections } = await $.prompt.compose({ ...BASE, surfaces: ['terminal'], traits: [] })
+  expect(sections[1]?.text).toContain('Do not reach for one by default')
+  expect(sections[1]?.text).not.toContain('three or more things that connect')
+})
+
+test('level eager pushes diagrams hardest', { options: { diagramLevel: 'eager' } }, async ($, on) => {
+  seedPrompt(on)
+  const { sections } = await $.prompt.compose({ ...BASE, surfaces: ['terminal'], traits: [] })
+  expect(sections[1]?.text).toContain('Default to including a mermaid diagram')
+  expect(sections[1]?.text).toContain('draw it instead')
+})
+
+for (const level of ['minimal', 'balanced', 'eager']) {
+  test(`craft and alert rules survive at level ${level}`, { options: { diagramLevel: level } }, async ($, on) => {
+    seedPrompt(on)
+    const { sections } = await $.prompt.compose({ ...BASE, surfaces: ['terminal'], traits: [] })
+    const text = sections[1]?.text ?? ''
+    expect(text).toContain('flowchart LR')
+    expect(text).toContain('[!CAUTION]')
+    expect(text).toContain('about 15 nodes')
+  })
+}
+
+test('an unknown level falls back to balanced', { options: { diagramLevel: 'nonsense' } }, async ($, on) => {
+  seedPrompt(on)
+  const { sections } = await $.prompt.compose({ ...BASE, surfaces: ['terminal'], traits: [] })
+  expect(sections[1]?.text).toContain('three or more things that connect')
 })

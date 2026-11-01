@@ -69,7 +69,20 @@ Configure via `/config`, or `pluginConfigs.markdown-render` in `settings.json`:
 | `cellAspect` | `2` | Terminal cell height divided by width, for image sizing. Raise it if diagrams look stretched tall, lower it if squashed |
 | `maxRows` | `45` | Taller diagrams are scaled down to fit |
 | `retentionDays` | `14` | Rendered diagrams older than this are deleted at session start |
-| `promptGuidance` | `true` | Add the diagram-encouraging system-prompt section |
+| `diagramLevel` | `balanced` | How strongly Claude is pushed toward diagrams: `off`, `minimal`, `balanced`, `eager` (see below) |
+
+### Diagram eagerness
+
+`diagramLevel` sets only how hard the injected system-prompt section pushes for diagrams. The rules that keep a diagram renderable (left-to-right layout, node budget, label quoting, no custom colors) and the guidance on GitHub alerts are included at every level except `off`.
+
+| Level | What Claude is told |
+| --- | --- |
+| `off` | Nothing is injected. Claude writes whatever markdown it would anyway. |
+| `minimal` | Diagrams are available but not the default. Draw one only where it clearly beats prose, or when asked. |
+| `balanced` | Draw one when a reply describes three or more things that connect, or steps that branch or loop. One diagram suits most replies. |
+| `eager` | Default to a diagram. Replace numbered step lists and `A -> B -> C` chains with one, and lead with it. |
+
+Higher levels mean more renderer calls, so on the mermaid-cli fallback (about 300 MB of Chrome per uncached render) `eager` costs noticeably more than `balanced`.
 
 ## Requirements
 
