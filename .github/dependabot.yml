@@ -1,0 +1,11 @@
+version: 2
+updates:
+  # The workflow pins actions/checkout to a commit SHA, which is safe but goes
+  # stale silently. Dependabot bumps the pin and says what changed.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"
+    open-pull-requests-limit: 3
