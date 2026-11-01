@@ -184,3 +184,86 @@ test('an unknown level falls back to balanced', { options: { diagramLevel: 'nons
   const { sections } = await $.prompt.compose({ ...BASE, surfaces: ['terminal'], traits: [] })
   expect(sections[1]?.text).toContain('three or more things that connect')
 })
+
+test('an inline details block leaks no raw tags', async ($) => {
+  const ui = await $.ui.mount(message('<details><summary>Inline</summary>body</details>'))
+  const summary = await ui.find({ type: 'Text', text: /Inline/ })
+  expect(summary?.text).not.toContain('<details>')
+  expect(summary?.text).not.toContain('</details>')
+  await ui.unmount()
+})
+
+test('a details block starts collapsed and expands when pressed', async ($) => {
+  const ui = await $.ui.mount(message('<details>\n<summary>Click me</summary>\n\nhidden body\n</details>'))
+
+  expect((await ui.find({ type: 'Text', text: /Click me/ }))?.text).toBe('▸ Click me')
+  expect(await ui.find({ type: 'Markdown', text: /hidden body/ })).toBe(undefined)
+
+  await ui.press({ key: 'details-0' })
+
+  expect((await ui.find({ type: 'Text', text: /Click me/ }))?.text).toBe('▾ Click me')
+  expect((await ui.find({ type: 'Markdown', text: /hidden body/ }))?.text).toContain('hidden body')
+
+  await ui.press({ key: 'details-0' })
+  expect(await ui.find({ type: 'Markdown', text: /hidden body/ })).toBe(undefined)
+
+  await ui.unmount()
+})
+
+test('two details blocks in one reply toggle independently', async ($) => {
+  const ui = await $.ui.mount(
+    message('<details><summary>One</summary>first body</details>\n\n<details><summary>Two</summary>second body</details>'),
+  )
+  await ui.press({ key: 'details-1' })
+  expect(await ui.find({ type: 'Markdown', text: /first body/ })).toBe(undefined)
+  expect((await ui.find({ type: 'Markdown', text: /second body/ }))?.text).toContain('second body')
+  await ui.unmount()
+})
+
+test('a details block with no summary still gets a label', async ($) => {
+  const ui = await $.ui.mount(message('<details>\n\nbody only\n</details>'))
+  expect((await ui.find({ type: 'Text', text: /Details/ }))?.text).toBe('▸ Details')
+  await ui.unmount()
+})
+
+test('an unclosed details while streaming stays plain markdown', async ($, on) => {
+  on('ui.render', ($, e) => {
+    const { Markdown } = $.ui.resolve(e)
+    return <Markdown text={(e.props as { text: string }).text} />
+  })
+  const ui = await $.ui.mount(message('<details>\n<summary>Partial</summary>'))
+  expect(await ui.find({ type: 'Button' })).toBe(undefined)
+  await ui.unmount()
+})
+
+test('pressing a rendered diagram opens the PNG in the system viewer', async ($, on) => {
+  const clock = mock.clock(on)
+  const runs: string[][] = []
+  let rendered = false
+  on('process.run', (_, e) => {
+    const argv = (e as { argv: string[] }).argv
+    runs.push(argv)
+    if (argv[0] === '/bin/sh') return { value: { ...RUN_OK, stdout: '/Users/u' } }
+    if (argv[0] !== 'find' && argv[0] !== '/usr/bin/open') rendered = true
+    return { value: RUN_OK }
+  })
+  on('fs.exists', (_, e) => {
+    const path = (e as { path: string }).path
+    if (path.endsWith('.png')) return { value: rendered }
+    if (path.endsWith('/mmdr')) return { value: path === '/opt/homebrew/bin/mmdr' }
+    return { value: true }
+  })
+  on('fs.write', () => ({ value: undefined }))
+  on('fs.read', () => ({ value: { base64: PNG } }))
+
+  const ui = await $.ui.mount(message('```mermaid\nflowchart LR\n  A --> B\n```'))
+  await clock.advance(1)
+  await clock.settle()
+  expect(await ui.find({ type: 'Image' })).toBeDefined()
+
+  await ui.press({ key: 'diagram-0' })
+
+  const opened = runs.find(r => r[0] === '/usr/bin/open')
+  expect(opened?.[1]).toMatch(/\.png$/)
+  await ui.unmount()
+})
