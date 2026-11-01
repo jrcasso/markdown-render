@@ -120,7 +120,9 @@ export const parse = (text: string): Segment[] => {
       if (j < lines.length) {
         flush()
         const raw = lines.slice(i, j + 1).join('\n')
-        const summary = SUMMARY.exec(raw)?.[1]?.trim()
+        // The summary is drawn in a plain Text, which renders no markup, so
+        // inline tags would otherwise show raw. It is a one-line label too.
+        const summary = SUMMARY.exec(raw)?.[1]?.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
         const body = raw
           .replace(SUMMARY, '')
           .replace(/<\/?details[^>]*>/gi, '')

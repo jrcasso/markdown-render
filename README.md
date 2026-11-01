@@ -14,13 +14,15 @@ Plain replies are handed straight to Claude Code's own renderer, so there is no 
 
 ## What it looks like
 
-When Claude writes a ```` ```mermaid ```` block, you get the picture instead of the source. These are real output from the renderer, in the default Dracula theme:
+One reply in Ghostty, unedited: a diagram drawn inline with its `⤢ open` control, a full-width rule, all five alert kinds with coloured gutters, a task list, and an expanded `<details>` block.
+
+![A Claude Code reply rendered by markdown-render, showing a mermaid flowchart, a horizontal rule, five coloured alert callouts, a task list and an expanded details block](assets/terminal-rendering.png)
+
+Diagrams are drawn at terminal-cell resolution over the reply text, scaled to your window width and capped at `maxRows` tall. Here is what the renderer produces on its own, in the default Dracula theme:
 
 ![A flowchart rendered inline in a reply](assets/diagram-flowchart.png)
 
 ![A sequence diagram rendered inline in a reply](assets/diagram-sequence.png)
-
-Diagrams are drawn at terminal-cell resolution over the reply text, scaled to your window width and capped at `maxRows` tall. Alerts, task lists and footnotes are drawn as terminal text alongside them: `> [!WARNING]` becomes a titled callout with a coloured gutter bar, `- [ ]` becomes `☐`, and `[^1]` becomes `¹`.
 
 ## Install
 
