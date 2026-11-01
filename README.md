@@ -69,7 +69,7 @@ Configure via `/config`, or `pluginConfigs.markdown-render` in `settings.json`:
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
-| `theme` | `dracula` | `dracula`, `dark`, `default`, `neutral`, `forest` |
+| `theme` | `dracula` | 19 themes, see below |
 | `renderer` | `auto` | `auto`, `mmdr`, `mermaid-cli` |
 | `cellAspect` | `2` | Terminal cell height divided by width, for image sizing. Raise it if diagrams look stretched tall, lower it if squashed |
 | `maxRows` | `45` | Taller diagrams are scaled down to fit |
@@ -88,6 +88,18 @@ Configure via `/config`, or `pluginConfigs.markdown-render` in `settings.json`:
 | `eager` | Default to a diagram. Replace numbered step lists and `A -> B -> C` chains with one, and lead with it. |
 
 Higher levels mean more renderer calls, so on the mermaid-cli fallback (about 300 MB of Chrome per uncached render) `eager` costs noticeably more than `balanced`.
+
+### Diagram themes
+
+Fifteen of the themes are generated from Ghostty's own theme files, so a diagram sits in the terminal rather than fighting it. Pick the one matching your Ghostty theme:
+
+`dracula` (default), `nord`, `solarized-dark`, `solarized-light`, `gruvbox-dark`, `gruvbox-light`, `catppuccin-mocha`, `catppuccin-latte`, `tokyo-night`, `monokai-pro`, `rose-pine`, `everforest-dark`, `one-half-dark`, `ayu-mirage`, `kanagawa-wave`
+
+Mermaid's own built-ins are also available: `dark`, `default`, `neutral`, `forest`.
+
+Each generated theme maps the terminal's 16 ANSI colours, background and foreground onto Mermaid's variables by the same rules, so nothing is hand-picked. Two adjustments keep them readable rather than merely faithful: node fills are the background blended toward the foreground (some themes set a near-white selection colour that would swallow label text), and accent colours used for edges and borders are nudged toward the foreground until they clear a 3:1 contrast ratio against the background, which matters most on the light themes.
+
+Ask for another of Ghostty's 400-odd themes and it can be generated the same way.
 
 ## Requirements
 

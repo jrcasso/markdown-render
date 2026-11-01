@@ -320,3 +320,71 @@ test('inline markup in a summary is not shown as raw tags', async ($) => {
   expect(label?.text).toBe('▸ What [!ERROR] renders as')
   await ui.unmount()
 })
+
+// Every theme the manifest offers must resolve to a real palette, or the
+// renderer silently falls back and the setting is a lie.
+for (const [theme, marker] of [
+  ['nord', '#2e3440'],
+  ['solarized-light', '#fdf6e3'],
+  ['catppuccin-mocha', '#1e1e2e'],
+  ['gruvbox-dark', '#282828'],
+  ['tokyo-night', '#1a1b26'],
+] as const) {
+  test(`the ${theme} theme reaches the renderer`, { options: { theme } }, async ($, on) => {
+    const clock = mock.clock(on)
+    const writes: Record<string, string> = {}
+    let rendered = false
+    on('process.run', (_, e) => {
+      const argv = (e as { argv: string[] }).argv
+      if (argv[0] === '/bin/sh') return { value: { ...RUN_OK, stdout: '/Users/u' } }
+      if (argv[0] !== 'find') rendered = true
+      return { value: RUN_OK }
+    })
+    on('fs.exists', (_, e) => {
+      const path = (e as { path: string }).path
+      if (path.endsWith('.png')) return { value: rendered }
+      if (path.endsWith('/mmdr')) return { value: path === '/opt/homebrew/bin/mmdr' }
+      return { value: true }
+    })
+    on('fs.write', (_, e) => {
+      const { path, text } = e as { path: string; text: string }
+      writes[path] = text
+      return { value: undefined }
+    })
+    on('fs.read', () => ({ value: { base64: PNG } }))
+
+    const ui = await $.ui.mount(message('```mermaid\nflowchart LR\n  A --> B\n```'))
+    await clock.advance(1)
+    await clock.settle()
+
+    const config = Object.entries(writes).find(([p]) => p.endsWith(`config-${theme}.json`))
+    expect(config).toBeDefined()
+    expect(config?.[1]).toContain(marker)
+    await ui.unmount()
+  })
+}
+
+test('an unknown theme falls back instead of rendering nothing', { options: { theme: 'nonsense' } }, async ($, on) => {
+  const clock = mock.clock(on)
+  let rendered = false
+  on('process.run', (_, e) => {
+    const argv = (e as { argv: string[] }).argv
+    if (argv[0] === '/bin/sh') return { value: { ...RUN_OK, stdout: '/Users/u' } }
+    if (argv[0] !== 'find') rendered = true
+    return { value: RUN_OK }
+  })
+  on('fs.exists', (_, e) => {
+    const path = (e as { path: string }).path
+    if (path.endsWith('.png')) return { value: rendered }
+    if (path.endsWith('/mmdr')) return { value: path === '/opt/homebrew/bin/mmdr' }
+    return { value: true }
+  })
+  on('fs.write', () => ({ value: undefined }))
+  on('fs.read', () => ({ value: { base64: PNG } }))
+
+  const ui = await $.ui.mount(message('```mermaid\nflowchart LR\n  A --> B\n```'))
+  await clock.advance(1)
+  await clock.settle()
+  expect(await ui.find({ type: 'Image' })).toBeDefined()
+  await ui.unmount()
+})

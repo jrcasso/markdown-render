@@ -1,6 +1,6 @@
 {
   "name": "markdown-render",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "GitHub-flavored markdown in replies: Mermaid diagrams as images, alerts, task lists, footnotes, details/kbd",
   "types": "./types/index.d.ts",
   "author": {
@@ -19,9 +19,23 @@
     "theme": {
       "type": "string",
       "title": "Diagram theme",
-      "description": "Color theme for Mermaid diagrams",
+      "description": "Color theme for Mermaid diagrams. The first fifteen are derived from Ghostty's own theme files so a diagram matches your terminal; the last four are Mermaid built-ins.",
       "options": [
         "dracula",
+        "nord",
+        "solarized-dark",
+        "solarized-light",
+        "gruvbox-dark",
+        "gruvbox-light",
+        "catppuccin-mocha",
+        "catppuccin-latte",
+        "tokyo-night",
+        "monokai-pro",
+        "rose-pine",
+        "everforest-dark",
+        "one-half-dark",
+        "ayu-mirage",
+        "kanagawa-wave",
         "dark",
         "default",
         "neutral",
