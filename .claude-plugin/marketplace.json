@@ -1,0 +1,20 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "markdown-render",
+  "description": "Rich GitHub-flavored markdown rendering for Claude Code replies in the terminal",
+  "owner": {
+    "name": "Justin Casso"
+  },
+  "plugins": [
+    {
+      "name": "markdown-render",
+      "description": "GitHub-flavored markdown in replies: Mermaid diagrams as images, alerts, task lists, footnotes, details/kbd",
+      "author": {
+        "name": "Justin Casso"
+      },
+      "category": "productivity",
+      "source": "./",
+      "homepage": "https://github.com/jrcasso/markdown-render"
+    }
+  ]
+}

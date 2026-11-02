@@ -1,0 +1,9 @@
+# Written by the engine once it has loaded the mod
+.claude-plugin/types/
+.mcpb-cache/
+
+# OS and editor leftovers
+.DS_Store
+*~
+*.swp
+*.log

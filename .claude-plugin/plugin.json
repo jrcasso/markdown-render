@@ -1,0 +1,67 @@
+{
+  "name": "markdown-render",
+  "version": "1.0.0",
+  "description": "GitHub-flavored markdown in replies: Mermaid diagrams as images, alerts, task lists, footnotes, details/kbd",
+  "author": {
+    "name": "Justin Casso"
+  },
+  "homepage": "https://github.com/jrcasso/markdown-render",
+  "keywords": [
+    "markdown",
+    "mermaid",
+    "diagrams",
+    "terminal",
+    "rendering"
+  ],
+  "license": "MIT",
+  "userConfig": {
+    "theme": {
+      "type": "string",
+      "title": "Diagram theme",
+      "description": "Color theme for Mermaid diagrams",
+      "options": [
+        "dracula",
+        "dark",
+        "default",
+        "neutral",
+        "forest"
+      ],
+      "default": "dracula"
+    },
+    "renderer": {
+      "type": "string",
+      "title": "Diagram renderer",
+      "description": "auto prefers mmdr (native, no browser) and falls back to mermaid-cli (headless Chrome)",
+      "options": [
+        "auto",
+        "mmdr",
+        "mermaid-cli"
+      ],
+      "default": "auto"
+    },
+    "cellAspect": {
+      "type": "number",
+      "title": "Terminal cell aspect",
+      "description": "Cell height divided by width; raise it if diagrams look stretched tall, lower it if squashed",
+      "default": 2
+    },
+    "maxRows": {
+      "type": "number",
+      "title": "Max diagram height (rows)",
+      "description": "Taller diagrams are scaled down to fit",
+      "default": 45
+    },
+    "retentionDays": {
+      "type": "number",
+      "title": "Diagram cache retention (days)",
+      "description": "Rendered diagrams older than this are deleted at session start",
+      "default": 14
+    },
+    "promptGuidance": {
+      "type": "boolean",
+      "title": "Encourage diagrams in replies",
+      "description": "Adds a short system-prompt section asking Claude to use Mermaid diagrams and lean markdown",
+      "default": true
+    }
+  }
+}
