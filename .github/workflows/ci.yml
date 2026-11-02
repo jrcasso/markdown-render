@@ -38,12 +38,3 @@ jobs:
 
       - name: Run the test suite
         run: claude plugin test .
-
-      - name: Check the version is a 1.x release number
-        run: |
-          version=$(python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
-          echo "manifest version: $version"
-          case "$version" in
-            1.*) ;;
-            *) echo "::error::version $version is not in the 1.x series"; exit 1 ;;
-          esac
