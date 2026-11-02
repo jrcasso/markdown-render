@@ -1,6 +1,6 @@
 {
   "name": "markdown-render",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "GitHub-flavored markdown in replies: Mermaid diagrams as images, alerts, task lists, footnotes, details/kbd",
   "author": {
     "name": "Justin Casso"
@@ -57,11 +57,17 @@
       "description": "Rendered diagrams older than this are deleted at session start",
       "default": 14
     },
-    "promptGuidance": {
-      "type": "boolean",
-      "title": "Encourage diagrams in replies",
-      "description": "Adds a short system-prompt section asking Claude to use Mermaid diagrams and lean markdown",
-      "default": true
+    "diagramLevel": {
+      "type": "string",
+      "title": "Diagram eagerness",
+      "description": "How strongly the system prompt pushes Claude toward diagrams. off adds no section at all; minimal draws one only where it clearly beats prose; balanced draws one when three or more things connect; eager defaults to a diagram",
+      "options": [
+        "off",
+        "minimal",
+        "balanced",
+        "eager"
+      ],
+      "default": "balanced"
     }
   }
 }
