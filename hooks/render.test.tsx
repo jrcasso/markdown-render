@@ -311,3 +311,12 @@ test('dashes inside a code fence are not a rule', async ($, on) => {
   expect(await ui.find({ type: 'Text', text: /^─+$/ })).toBe(undefined)
   await ui.unmount()
 })
+
+test('inline markup in a summary is not shown as raw tags', async ($) => {
+  const ui = await $.ui.mount(
+    message('<details><summary>What <code>[!ERROR]</code> renders as</summary>body</details>'),
+  )
+  const label = await ui.find({ type: 'Text', text: /ERROR/ })
+  expect(label?.text).toBe('▸ What [!ERROR] renders as')
+  await ui.unmount()
+})
