@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Least privilege: nothing here needs to write to the repository. A fork's
+# pull request gets a read-only token regardless, but stating it keeps the
+# default from widening if repository settings change.
+permissions:
+  contents: read
+
+# A new push to the same branch cancels the run still going for the old one.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: validate and test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # Pinned to a commit rather than a tag: a tag can be moved to point at
+      # other code, a commit cannot.
+      - name: Check out the plugin
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code@2.1.316
+
+      - name: Check the manifest, marketplace file and hooks module
+        run: claude plugin validate .
+
+      - name: Run the test suite
+        run: claude plugin test .
+
+      - name: Check the version is a 1.x release number
+        run: |
+          version=$(python3 -c "import json; print(json.load(open('.claude-plugin/plugin.json'))['version'])")
+          echo "manifest version: $version"
+          case "$version" in
+            1.*) ;;
+            *) echo "::error::version $version is not in the 1.x series"; exit 1 ;;
+          esac
