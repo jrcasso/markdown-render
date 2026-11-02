@@ -4,10 +4,14 @@ export type Segment =
   | { kind: 'markdown'; text: string }
   | { kind: 'mermaid'; source: string; isClosed: boolean }
   | { kind: 'alert'; alert: AlertKind; body: string }
+  | { kind: 'details'; summary: string; body: string }
 
 const FENCE_OPEN = /^ {0,3}(`{3,}|~{3,})\s*([^\s`]*)/
 const ALERT_HEAD = /^ {0,3}>\s*\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*$/i
 const QUOTE_LINE = /^ {0,3}>/
+const DETAILS_OPEN = /<details[\s>]/i
+const DETAILS_CLOSE = /<\/details\s*>/i
+const SUMMARY = /<summary[^>]*>([\s\S]*?)<\/summary>/i
 
 const SUPERSCRIPT: Record<string, string> = {
   '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴',
@@ -23,7 +27,7 @@ export const rewriteProse = (text: string): string =>
     .replace(/^(\s*(?:[-*+]|\d+[.)])\s+)\[[xX]\]\s/gm, '$1☑ ')
     .replace(/^\[\^([^\]\s]+)\]:\s*/gm, (_, id: string) => `${superscript(id)} `)
     .replace(/\[\^([^\]\s]+)\]/g, (_, id: string) => superscript(id))
-    .replace(/^\s*<\/?details[^>]*>\s*$/gim, '')
+    .replace(/<\/?details[^>]*>/gi, '')
     .replace(/<summary>([\s\S]*?)<\/summary>/gi, (_, s: string) => `**▾ ${s.trim()}**`)
     .replace(/<kbd>([^<]*)<\/kbd>/gi, '`$1`')
     .replace(/<br\s*\/?>/gi, '  \n')
@@ -94,6 +98,27 @@ export const parse = (text: string): Segment[] => {
       }
       i = j + 1
       continue
+    }
+
+    if (DETAILS_OPEN.test(line)) {
+      let j = i
+      while (j < lines.length && !DETAILS_CLOSE.test(at(j))) j++
+      if (j < lines.length) {
+        flush()
+        const raw = lines.slice(i, j + 1).join('\n')
+        const summary = SUMMARY.exec(raw)?.[1]?.trim()
+        const body = raw
+          .replace(SUMMARY, '')
+          .replace(/<\/?details[^>]*>/gi, '')
+          .trim()
+        segments.push({
+          kind: 'details',
+          summary: summary !== undefined && summary !== '' ? summary : 'Details',
+          body: rewriteOutsideFences(body),
+        })
+        i = j + 1
+        continue
+      }
     }
 
     const alert = ALERT_HEAD.exec(line)

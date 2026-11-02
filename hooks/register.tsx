@@ -1,5 +1,7 @@
 import type { Register } from 'claude-code'
 
+import { atom, read, update } from 'claude-code'
+
 import { type AlertKind, type Segment, imageCells, parse, rewriteOutsideFences } from './parse'
 import { type RenderSettings, diagramKey, diagrams, pruneCache, renderDiagram } from './render'
 
@@ -33,6 +35,9 @@ Using GitHub alerts, which render as coloured callout boxes:
 Typical moments: a step the user still has to run, an action that needs a restart, a result that is untested, a change that touches production or shared state, a surprising finding. Keep each alert to one to three sentences, at most about three per reply, and never wrap a whole answer in one.
 
 Be token-conscious with other markdown: use headings, tables and lists only where they make the reply easier to scan. No decorative formatting, and no tables for two or three items.`
+
+const OPEN = { plugin: 'markdown-render', key: 'open' } as const
+const OPEN_COMMAND = '/usr/bin/open'
 
 const isDiagramLevel = (v: unknown): v is DiagramLevel =>
   typeof v === 'string' && (DIAGRAM_LEVELS as readonly string[]).includes(v)
@@ -86,10 +91,40 @@ export const register: Register = (on, options) => {
       return next({ ...e, props: { ...e.props, text: rewriteOutsideFences(e.props.text) } })
     }
 
-    const { Box, Text, Markdown, Code, Image } = $.ui.resolve(e)
+    const { Box, Text, Markdown, Code, Image, Button } = $.ui.resolve(e)
     const maxColumns = Math.max(20, (e.viewport?.columns ?? 100) - 4)
 
-    const drawMermaid = (source: string, isClosed: boolean) => {
+    const openStates = new Map<number, boolean>()
+    await Promise.all(
+      segments.map(async (s, i) => {
+        if (s.kind !== 'details') return
+        openStates.set(i, (await read($, atom({ ...OPEN, id: `${e.requestId}:${i}` }, false))) === true)
+      }),
+    )
+
+    const drawDetails = (s: Extract<Segment, { kind: 'details' }>, index: number) => {
+      const isOpen = openStates.get(index) === true
+      return (
+        <Box flexDirection="column">
+          <Button
+            key={`details-${index}`}
+            label={s.summary}
+            onPress={() => void update($, atom({ ...OPEN, id: `${e.requestId}:${index}` }, false), v => v !== true)}
+          >
+            <Text bold>
+              {isOpen ? '▾' : '▸'} {s.summary}
+            </Text>
+          </Button>
+          {isOpen && s.body.trim() !== '' && (
+            <Box paddingLeft={2}>
+              <Markdown text={s.body} />
+            </Box>
+          )}
+        </Box>
+      )
+    }
+
+    const drawMermaid = (source: string, isClosed: boolean, index: number) => {
       const key = diagramKey(source, settings)
       let diagram = diagrams.get(key)
       if (diagram === undefined && isClosed) {
@@ -99,8 +134,14 @@ export const register: Register = (on, options) => {
       }
       if (diagram?.status === 'ready') {
         const cells = imageCells(diagram, diagram.scale, maxColumns, cellAspect, maxRows)
+        const file = diagram.file
         return (
-          <Image source={diagram.png !== null ? { png: diagram.png } : { file: diagram.file, format: 'png' }} {...cells} alt={`mermaid diagram:\n${source}`} />
+          <Box flexDirection="column">
+            <Image source={diagram.png !== null ? { png: diagram.png } : { file, format: 'png' }} {...cells} alt={`mermaid diagram:\n${source}`} />
+            <Button key={`diagram-${index}`} label="open diagram" onPress={() => void $.process.run([OPEN_COMMAND, file])}>
+              <Text dimColor>⤢ open</Text>
+            </Button>
+          </Box>
         )
       }
       return (
@@ -115,9 +156,10 @@ export const register: Register = (on, options) => {
       )
     }
 
-    const drawSegment = (s: Segment) => {
+    const drawSegment = (s: Segment, index: number) => {
       if (s.kind === 'markdown') return <Markdown text={s.text} />
-      if (s.kind === 'mermaid') return drawMermaid(s.source, s.isClosed)
+      if (s.kind === 'mermaid') return drawMermaid(s.source, s.isClosed, index)
+      if (s.kind === 'details') return drawDetails(s, index)
       const a = ALERTS[s.alert]
       return (
         <Box flexDirection="column" paddingLeft={2}>
@@ -134,7 +176,7 @@ export const register: Register = (on, options) => {
 
     const body = segments.map((s, i) => (
       <Box key={`s${i}`} flexDirection="column" marginTop={i > 0 ? 1 : 0}>
-        {drawSegment(s)}
+        {drawSegment(s, i)}
       </Box>
     ))
 

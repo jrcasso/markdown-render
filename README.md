@@ -4,7 +4,9 @@ A Claude Code mod that renders GitHub-flavored markdown extras in assistant repl
 
 - **Mermaid code blocks as images**, rendered inline, Dracula theme by default, cached by content hash
 - **GitHub alerts** (`> [!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) as coloured callouts with a tinted gutter
-- **Task lists** as `☐`/`☑`, footnotes as superscripts, `<details>`/`<summary>`, `<kbd>`, `<br>`
+- **Collapsible `<details>` blocks**, drawn as a pressable summary row that expands and collapses on click, collapsed by default as the HTML element is
+- **Task lists** as `☐`/`☑`, footnotes as superscripts, `<kbd>`, `<br>`
+- **An `⤢ open` control under each rendered diagram** that opens the full-resolution PNG in your image viewer, for when a diagram is too dense to read at terminal size
 - **An optional system-prompt section** that encourages Claude to reach for diagrams and keep markdown lean
 
 Plain replies are handed straight to Claude Code's own renderer, so there is no cost when there is nothing extra to draw. Any failure falls back to the engine's drawing, or to the diagram source with an error line: a broken renderer never costs you the reply.
@@ -87,8 +89,9 @@ Higher levels mean more renderer calls, so on the mermaid-cli fallback (about 30
 ## Requirements
 
 - **A terminal session.** The rendering hooks only draw for the `terminal` surface; other surfaces are passed through untouched.
+- **Fullscreen rendering** (`"tui": "fullscreen"`) for the clickable controls. The terminal only reports clicks to a plugin under the fullscreen renderer; elsewhere the summary row and `⤢ open` still draw but cannot be pressed.
 - **An image-capable terminal** for diagrams: kitty or Ghostty (kitty graphics protocol), or iTerm2 3.5+ under fullscreen rendering. Inside tmux you also need `allow-passthrough` and `focus-events` on. Elsewhere a diagram draws its alt text.
-- **macOS**, currently. Diagram downscaling shells out to `sips`, and the mermaid-cli path looks for Chrome at its standard macOS location. Everything except diagram rendering is platform-independent, so Linux support needs only those two spots generalised. Patches welcome.
+- **macOS**, currently. Diagram downscaling shells out to `sips`, the `⤢ open` control shells out to `/usr/bin/open`, and the mermaid-cli path looks for Chrome at its standard macOS location. Everything except diagram rendering is platform-independent, so Linux support needs only those two spots generalised. Patches welcome.
 
 ## Development
 
