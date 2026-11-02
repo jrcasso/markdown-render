@@ -9,6 +9,16 @@ A Claude Code mod that renders GitHub-flavored markdown extras in assistant repl
 
 Plain replies are handed straight to Claude Code's own renderer, so there is no cost when there is nothing extra to draw. Any failure falls back to the engine's drawing, or to the diagram source with an error line: a broken renderer never costs you the reply.
 
+## What it looks like
+
+When Claude writes a ```` ```mermaid ```` block, you get the picture instead of the source. These are real output from the renderer, in the default Dracula theme:
+
+![A flowchart rendered inline in a reply](assets/diagram-flowchart.png)
+
+![A sequence diagram rendered inline in a reply](assets/diagram-sequence.png)
+
+Diagrams are drawn at terminal-cell resolution over the reply text, scaled to your window width and capped at `maxRows` tall. Alerts, task lists and footnotes are drawn as terminal text alongside them: `> [!WARNING]` becomes a titled callout with a coloured gutter bar, `- [ ]` becomes `☐`, and `[^1]` becomes `¹`.
+
 ## Install
 
 ### 1. Install a diagram renderer first
